@@ -5,6 +5,7 @@ using StardewValley;
 using StardewValley.Menus;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,15 +14,20 @@ using System.Threading.Tasks;
 //TODO: Config for setting "Rain day or max days without rain"
 namespace KirpysMods
 {
-     
-    class NewDay:Mod
+
+    class NewDay : Mod
     {
-        
+        public ModConfig Config;
+        // TODO: Do I need the isRaining var?
         public bool isRaining = false;
+        public int DaysWORain = 0;
         List<String> morningPhrase = new List<String>();
         
+        //string RainDay = this.Config.RainDay;
         public override void Entry(IModHelper helper)
         {
+            this.Config = this.Helper.ReadConfig<ModConfig>();
+
             Initialize(helper);
 
         }
@@ -33,6 +39,7 @@ namespace KirpysMods
         /// <param name="helper"></param>
         private void Initialize(IModHelper helper)
         {
+
 
             helper.Events.GameLoop.DayStarted += OnDayStarted;
             helper.ConsoleCommands.Add("rain", "Toggles rain on demand! \n\nUseage: rain", this.ToggleRain);
@@ -52,45 +59,77 @@ namespace KirpysMods
         /// <param name="e"></param>
         /// 
 
-            //TODO: update if/else for config variable.
+        //TODO: Add logging
         private void OnDayStarted(object sender, DayStartedEventArgs e)
         {
+            int MaxDays = this.Config.MaxDays;
+            
+            string RainDay = this.Config.RainDay;
+            bool UseMax = this.Config.UseMax;
+            var CurrSeason = Game1.currentSeason;
             Random newGreeting = new Random();
             int greet2 = newGreeting.Next(0, morningPhrase.Count);
             Console.WriteLine(morningPhrase[greet2]);
 
-
+            // TODO: Do I need the isRaining var?
             isRaining = Game1.isRaining;
+
             var date = SDate.Now();
-            var Tues = "Tuesday";
-            var Wed = "Wednesday";
 
             var greeting = string.Format(morningPhrase[greet2] + Game1.player.name + "!");
-            if (date.DayOfWeek.ToString() == Tues &&  Game1.IsMasterGame)
+            if (CurrSeason == "winter")
             {
-                Game1.weatherForTomorrow = 1;
-                Game1.chanceToRainTomorrow = .999;
-                
-            }
-            else if (!Game1.IsMasterGame)
-            {
-                this.Monitor.Log($"User is not host.  Rain update cancelled", LogLevel.Debug);
-            }
-            else if (date.DayOfWeek.ToString() != Wed)
-            {
+                Game1.drawObjectDialogue(Game1.parseText(greeting.ToUpper()));
 
-                this.Monitor.Log($"Day is {date}.  Rain is scheduled for Wednesdays", LogLevel.Debug);
+                return;
             }
-            if (Game1.isRaining)
+            if (UseMax)
             {
-                this.Monitor.Log($"It is raining, Chance of rain tomorrow: {Game1.chanceToRainTomorrow}.  Today's day: {date}, { date.DayOfWeek}", LogLevel.Debug);
-                greeting = "ITS RAINING!!!!";
+                if(Game1.isRaining)
+                {
+                    DaysWORain = 0;
+                    this.Monitor.Log($"It is currently raining.  Days without rain: {DaysWORain}", LogLevel.Debug);
+                }
+                else
+                {
+                    DaysWORain++;
+                    this.Monitor.Log($"It is not raining.  Days without rain: {DaysWORain}", LogLevel.Debug);
+                }
+                if (DaysWORain >= MaxDays)
+                {
+                    Game1.weatherForTomorrow = 1;
+                    Game1.chanceToRainTomorrow = .999;
+                    this.Monitor.Log($"It has been {DaysWORain} days without rain, chance of rain tomorrow: {Game1.chanceToRainTomorrow} ", LogLevel.Debug);
+                }
             }
             else
-            { this.Monitor.Log($"It is not raining, Chance of rain tomorrow: {Game1.chanceToRainTomorrow}.  Today's day: {date}, { date.DayOfWeek}", LogLevel.Debug); }
+            {
+                //TODO: This should be Rainday - 1.  
+                if (date.DayOfWeek.ToString() == RainDay && Game1.IsMasterGame)
+                {
+                    Game1.weatherForTomorrow = 1;
+                    Game1.chanceToRainTomorrow = .999;
 
+                }
+                else if (!Game1.IsMasterGame)
+                {
+                    this.Monitor.Log($"User is not host.  Rain update cancelled", LogLevel.Debug);
+                }
+                else if (date.DayOfWeek.ToString() != RainDay)
+                {
+
+                    this.Monitor.Log($"Day is {date}.  Rain is scheduled for {RainDay}s", LogLevel.Debug);
+                }
+                if (Game1.isRaining)
+                {
+                    this.Monitor.Log($"It is raining, Chance of rain tomorrow: {Game1.chanceToRainTomorrow}.  Today's day: {date}, { date.DayOfWeek}", LogLevel.Debug);
+                    greeting = "ITS RAINING!!!!";
+                }
+                else
+                { this.Monitor.Log($"It is not raining, Chance of rain tomorrow: {Game1.chanceToRainTomorrow}.  Today's day: {date}, { date.DayOfWeek}", LogLevel.Debug); }
+            }
             Game1.drawObjectDialogue(Game1.parseText(greeting.ToUpper()));
-            
+
         }
 
         /// <summary>
@@ -98,9 +137,16 @@ namespace KirpysMods
         /// </summary>
         /// <param name="command"></param>
         /// <param name="args"></param>
-        private void  ToggleRain(string command, string[] args)
+
+        // TODO: Do I need the isRaining var?
+        private void ToggleRain(string command, string[] args)
         {
-            if(Game1.IsMasterGame)
+            if (Game1.currentSeason == "winter")
+            {
+                this.Monitor.Log($"It is winter, please wait until it is not winter to use this command!", LogLevel.Debug);
+                return;
+            }
+            if (Game1.IsMasterGame)
             {
                 if (!isRaining)
                 {
@@ -110,6 +156,7 @@ namespace KirpysMods
                 else if (isRaining)
                 {
                     Game1.isRaining = false;
+                    
                     isRaining = false;
                 }
             }
@@ -118,8 +165,8 @@ namespace KirpysMods
                 this.Monitor.Log($"YOU ARE NOT THE HOST. STOP TRYING TO MAKE IT RAIN!", LogLevel.Debug);
             }
         }
-        
-    }
 
     }
+
+}
 
