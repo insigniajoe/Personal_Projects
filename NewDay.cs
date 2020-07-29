@@ -10,19 +10,16 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-//TODO: Set max days without rain
-//TODO: Config for setting "Rain day or max days without rain"
+
 namespace KirpysMods
 {
 
     class NewDay : Mod
     {
         public ModConfig Config;
-        // TODO: Do I need the isRaining var?
-        public bool isRaining = false;
         public int DaysWORain = 0;
         List<String> morningPhrase = new List<String>();
-        
+
         //string RainDay = this.Config.RainDay;
         public override void Entry(IModHelper helper)
         {
@@ -40,9 +37,10 @@ namespace KirpysMods
         private void Initialize(IModHelper helper)
         {
 
-
+            //TODO: Add list of phrases in config file?
             helper.Events.GameLoop.DayStarted += OnDayStarted;
             helper.ConsoleCommands.Add("rain", "Toggles rain on demand! \n\nUseage: rain", this.ToggleRain);
+            Console.WriteLine(this.Config.Greetings);
             morningPhrase.Add("LETS GET THIS BREAD ");
             morningPhrase.Add("MOISTURIZE ME ");
             morningPhrase.Add("Good morning, Sleeping Beauty! I thought you'd never wake up! ");
@@ -53,28 +51,25 @@ namespace KirpysMods
         /// <summary>
         /// Sets Wednesdays to rain.
         /// Adds greeting from a list.
-        /// TODO: Add config option
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        /// 
-
-        //TODO: Add logging
         private void OnDayStarted(object sender, DayStartedEventArgs e)
         {
             int MaxDays = this.Config.MaxDays;
-            
             string RainDay = this.Config.RainDay;
+            var date = SDate.Now();
+            var RainPrep = date.AddDays(-1).DayOfWeek;
+
             bool UseMax = this.Config.UseMax;
             var CurrSeason = Game1.currentSeason;
             Random newGreeting = new Random();
             int greet2 = newGreeting.Next(0, morningPhrase.Count);
+            Console.WriteLine(this.Config.Greetings);
             Console.WriteLine(morningPhrase[greet2]);
 
-            // TODO: Do I need the isRaining var?
-            isRaining = Game1.isRaining;
 
-            var date = SDate.Now();
+
 
             var greeting = string.Format(morningPhrase[greet2] + Game1.player.name + "!");
             if (CurrSeason == "winter")
@@ -85,7 +80,7 @@ namespace KirpysMods
             }
             if (UseMax)
             {
-                if(Game1.isRaining)
+                if (Game1.isRaining)
                 {
                     DaysWORain = 0;
                     this.Monitor.Log($"It is currently raining.  Days without rain: {DaysWORain}", LogLevel.Debug);
@@ -104,12 +99,12 @@ namespace KirpysMods
             }
             else
             {
-                //TODO: This should be Rainday - 1.  
-                if (date.DayOfWeek.ToString() == RainDay && Game1.IsMasterGame)
+
+                if (date.AddDays(1).DayOfWeek.ToString() == RainDay.ToString() && Game1.IsMasterGame)
                 {
                     Game1.weatherForTomorrow = 1;
                     Game1.chanceToRainTomorrow = .999;
-
+                    this.Monitor.Log($"Its {RainDay} tomorrow! ", LogLevel.Debug);
                 }
                 else if (!Game1.IsMasterGame)
                 {
@@ -138,7 +133,6 @@ namespace KirpysMods
         /// <param name="command"></param>
         /// <param name="args"></param>
 
-        // TODO: Do I need the isRaining var?
         private void ToggleRain(string command, string[] args)
         {
             if (Game1.currentSeason == "winter")
@@ -148,16 +142,13 @@ namespace KirpysMods
             }
             if (Game1.IsMasterGame)
             {
-                if (!isRaining)
+                if (!Game1.isRaining)
                 {
                     Game1.isRaining = true;
-                    isRaining = true;
                 }
-                else if (isRaining)
+                else if (Game1.isRaining)
                 {
                     Game1.isRaining = false;
-                    
-                    isRaining = false;
                 }
             }
             else
